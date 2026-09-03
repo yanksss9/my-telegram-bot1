@@ -629,6 +629,21 @@ async def cmd_stop(message: types.Message):
     else:
         await message.answer("Нет активных игр в этом чате.")
 
+# ---------- КОМАНДА ДЛЯ FLAPPY BIRD ----------
+@dp.message(Command("flappy"))
+async def cmd_flappy(message: types.Message):
+    await bot.send_game(
+        chat_id=message.chat.id,
+        game_short_name="FlappyBird"   # это имя ты указал у BotFather
+    )
+
+# Обработчик нажатия на кнопку "Play"
+@dp.callback_query(lambda c: c.game_short_name is not None)
+async def handle_game_callback(callback_query: types.CallbackQuery):
+    await callback_query.answer(
+        url="https://yanksss9.github.io/flappy-bird-game/"
+    )
+    
 # ---------- ЗАПУСК ----------
 if __name__ == "__main__":
     dp.run_polling(bot)
