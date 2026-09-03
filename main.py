@@ -78,12 +78,14 @@ async def handle_rps(callback: CallbackQuery):
         await callback.answer("Нет активной игры. Напишите /rps для начала.")
         return
 
-    # Если пользователь уже сделал ход
     if user_id in session["players"]:
         await callback.answer("Ты уже сделал ход! Жди второго игрока.")
         return
 
-    # Если это первый игрок (turn=0)
+    # Сохраняем имя при первом ходе (если ещё не сохранено)
+    if user_id not in session["names"]:
+        session["names"][user_id] = callback.from_user.first_name or callback.from_user.username or "Игрок"
+
     if session["turn"] == 0:
         session["players"][user_id] = choice
         session["turn"] = 1
@@ -94,7 +96,6 @@ async def handle_rps(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # Если это второй игрок (turn=1)
     if session["turn"] == 1:
         session["players"][user_id] = choice
         players = session["players"]
@@ -104,20 +105,26 @@ async def handle_rps(callback: CallbackQuery):
             return
         u1, u2 = user_ids[0], user_ids[1]
         ch1, ch2 = players[u1], players[u2]
+        
+        # Получаем имена
+        name1 = session["names"].get(u1, "Игрок 1")
+        name2 = session["names"].get(u2, "Игрок 2")
+
         # Определяем результат
         if ch1 == ch2:
             result = "🤝 Ничья!"
         elif (ch1 == "paper" and ch2 == "rock") or \
              (ch1 == "scissors" and ch2 == "paper") or \
              (ch1 == "rock" and ch2 == "scissors"):
-            result = "🏆 Победил первый игрок!"
+            result = f"🏆 Победил {name1}!"
         else:
-            result = "🏆 Победил второй игрок!"
+            result = f"🏆 Победил {name2}!"
+
         emoji = {"paper": "📄", "scissors": "✂️", "rock": "🪨"}
         final_text = (
             f"👥 Камень, ножницы, бумага — Результат\n\n"
-            f"Игрок 1: {emoji[ch1]}\n"
-            f"Игрок 2: {emoji[ch2]}\n\n"
+            f"{name1}: {emoji[ch1]}\n"
+            f"{name2}: {emoji[ch2]}\n\n"
             f"{result}\n\n"
             f"Игра завершена! Начните новую через /rps."
         )
@@ -125,7 +132,6 @@ async def handle_rps(callback: CallbackQuery):
         del pvp_sessions[chat_id]
         await callback.answer()
         return
-
 # ---------- ИГРА КРЕСТИКИ-НОЛИКИ ----------
 ttt_games = {}
 
