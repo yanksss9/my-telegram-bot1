@@ -21,11 +21,12 @@ async def show_menu(message: types.Message):
         "/rps – Камень, ножницы, бумага (для 2 игроков).\n"
         "/ttt – Крестики-нолики (для 2 игроков).\n"
         "/guess – Угадай число (для 2 игроков).\n"
-        "/slot – Игровой автомат (для 2 игроков).\n\n"
+        "/slot – Игровой автомат (для 2 игроков).\n"
+        "/flappy – Играть в Flappy Bird.\n\n"
         "Чтобы остановить текущую игру, используйте /stop.\n"
         "Для игры вдвоём добавьте бота в группу и пригласите друга!"
     )
-    await message.answer(text)   # теперь только одно сообщение (без кнопок)
+    await message.answer(text)
 
 # ---------- ИГРА RPS (Камень, ножницы, бумага) вдвоём ----------
 pvp_sessions = {}
@@ -61,36 +62,31 @@ async def cmd_rps(message: types.Message):
         await message.answer("Эта игра работает только в группе! Добавьте бота в группу с другом.")
         return
     pvp_sessions[chat_id] = {
-    "players": {},
-    "names": {},   # <-- эта строчка должна быть
-    "turn": 0,
-}
+        "players": {},
+        "names": {},
+        "turn": 0,
+    }
     text = "👥 Камень, ножницы, бумага (вдвоём)\n\nПервый игрок, делай ход! (нажми кнопку)"
     await message.answer(text, reply_markup=get_choice_keyboard())
 
-@dp.callback_query(lambda c: c.data in ["paper", "scissors", "rock"])
+@dp.callback_query(lambda c: c.data and c.data in ["paper", "scissors", "rock"])
 async def handle_rps(callback: CallbackQuery):
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
     choice = callback.data
 
-    # Получаем сессию
     session = pvp_sessions.get(chat_id)
     if not session:
         await callback.answer("Нет активной игры. Напишите /rps для начала.")
         return
 
-    # --- ЗАЩИТА от старых сессий ---
     if "names" not in session:
         session["names"] = {}
-    # ------------------------------
 
-    # Дальше идёт остальная логика...
     if user_id in session["players"]:
         await callback.answer("Ты уже сделал ход! Жди второго игрока.")
         return
 
-    # Сохраняем имя при первом ходе (если ещё не сохранено)
     if user_id not in session["names"]:
         session["names"][user_id] = callback.from_user.first_name or callback.from_user.username or "Игрок"
 
@@ -113,12 +109,10 @@ async def handle_rps(callback: CallbackQuery):
             return
         u1, u2 = user_ids[0], user_ids[1]
         ch1, ch2 = players[u1], players[u2]
-        
-        # Получаем имена
+
         name1 = session["names"].get(u1, "Игрок 1")
         name2 = session["names"].get(u2, "Игрок 2")
 
-        # Определяем результат
         if ch1 == ch2:
             result = "🤝 Ничья!"
         elif (ch1 == "paper" and ch2 == "rock") or \
@@ -140,6 +134,7 @@ async def handle_rps(callback: CallbackQuery):
         del pvp_sessions[chat_id]
         await callback.answer()
         return
+
 # ---------- ИГРА КРЕСТИКИ-НОЛИКИ ----------
 ttt_games = {}
 
@@ -226,7 +221,7 @@ async def ttt_join(callback: CallbackQuery):
         await callback.message.edit_text(text, reply_markup=get_ttt_keyboard(game))
         game.message_id = callback.message.message_id
 
-@dp.callback_query(lambda c: c.data.startswith('ttt_') and c.data != "ttt_join")
+@dp.callback_query(lambda c: c.data and c.data.startswith('ttt_') and c.data != "ttt_join")
 async def ttt_move(callback: CallbackQuery):
     data = callback.data.split('_')
     if len(data) != 2:
@@ -372,7 +367,7 @@ async def guess_join(callback: CallbackQuery):
         await callback.message.edit_text(text, reply_markup=keyboard)
         game.message_id = callback.message.message_id
 
-@dp.callback_query(lambda c: c.data.startswith('guess_') and c.data != "guess_join")
+@dp.callback_query(lambda c: c.data and c.data.startswith('guess_') and c.data != "guess_join")
 async def guess_move(callback: CallbackQuery):
     data = callback.data.split('_')
     if len(data) != 2:
@@ -411,19 +406,10 @@ async def guess_move(callback: CallbackQuery):
 
     if game.turn == 1:
         # Оба игрока выбрали числа – бросаем кубик
-        # Отправляем анимированный кубик (он останется в чате)
-
-        # Ждём 3 секунды, пока анимация завершится
         await asyncio.sleep(3)
-
-        # После анимации берём результат – но мы не можем получить значение отправленного кубика,
-        # поэтому мы отправляем его и сразу получаем объект сообщения, чтобы сохранить результат
-        # Но мы не сохранили сообщение. Исправим:
         dice_msg = await bot.send_dice(chat_id=chat_id, emoji="🎲")
         dice_value = dice_msg.dice.value
-        # Так как мы отправили ещё одно сообщение, кубик останется в чате.
-        # Теперь редактируем основное сообщение игры с результатом
-        await asyncio.sleep(3)  # дополнительная задержка, чтобы анимация успела завершиться
+        await asyncio.sleep(3)
 
         p1_id, p2_id = game.players
         p1_guess = game.guesses[p1_id]
@@ -460,7 +446,7 @@ class SlotGame:
         self.turn = 0
         self.winner = None
         self.message_id = None
-        self.last_slot_message_id = None  # для хранения ID последнего слота
+        self.last_slot_message_id = None
 
 @dp.message(Command("slot"))
 async def cmd_slot(message: types.Message):
@@ -540,22 +526,18 @@ async def slot_spin(callback: CallbackQuery):
         await callback.answer("Сейчас не твой ход!")
         return
 
-    # Если есть старый слот – удаляем его
     if game.last_slot_message_id:
         try:
             await bot.delete_message(chat_id=chat_id, message_id=game.last_slot_message_id)
         except Exception:
-            pass  # если сообщение уже удалено, игнорируем
+            pass
 
-    # Отправляем новый анимированный слот
     slot_msg = await bot.send_dice(chat_id=chat_id, emoji="🎰")
     slot_value = slot_msg.dice.value
-    game.last_slot_message_id = slot_msg.message_id  # запоминаем ID нового слота
+    game.last_slot_message_id = slot_msg.message_id
 
-    # Ждём 3 секунды, пока анимация завершится
     await asyncio.sleep(3)
 
-    # Если выпал джекпот (64) – победа!
     if slot_value == 64:
         winner_name = game.names[game.turn]
         await callback.message.edit_text(
@@ -564,7 +546,6 @@ async def slot_spin(callback: CallbackQuery):
             f"🏆 {winner_name} победил в игре!",
             reply_markup=None
         )
-        # Удаляем последний слот (уже не нужен)
         try:
             await bot.delete_message(chat_id=chat_id, message_id=game.last_slot_message_id)
         except:
@@ -573,7 +554,6 @@ async def slot_spin(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # Если не джекпот, передаём ход другому игроку
     game.turn = 1 - game.turn
     next_name = game.names[game.turn]
     text = (
@@ -593,17 +573,14 @@ async def cmd_stop(message: types.Message):
     chat_id = message.chat.id
     stopped = []
 
-    # Проверяем все активные игры
     if chat_id in pvp_sessions:
         del pvp_sessions[chat_id]
         stopped.append("Камень-ножницы-бумага (PvP)")
     if chat_id in ttt_games:
-        # Проверяем, является ли объект игрой (не словарём для сбора игроков)
         if isinstance(ttt_games[chat_id], TicTacToe):
             del ttt_games[chat_id]
             stopped.append("Крестики-нолики")
         elif isinstance(ttt_games[chat_id], dict) and "players" in ttt_games[chat_id]:
-            # Если игра ещё не началась (только сбор игроков) – тоже удаляем
             del ttt_games[chat_id]
             stopped.append("Крестики-нолики (ожидание)")
     if chat_id in guess_games:
@@ -634,7 +611,7 @@ async def cmd_stop(message: types.Message):
 async def cmd_flappy(message: types.Message):
     await bot.send_game(
         chat_id=message.chat.id,
-        game_short_name="FlappyBird"   # это имя ты указал у BotFather
+        game_short_name="FlappyBird"
     )
 
 # Обработчик нажатия на кнопку "Play"
@@ -643,7 +620,7 @@ async def handle_game_callback(callback_query: types.CallbackQuery):
     await callback_query.answer(
         url="https://yanksss9.github.io/flappy-bird-game/"
     )
-    
+
 # ---------- ЗАПУСК ----------
 if __name__ == "__main__":
     dp.run_polling(bot)
