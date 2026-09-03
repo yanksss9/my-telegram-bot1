@@ -61,9 +61,10 @@ async def cmd_rps(message: types.Message):
         await message.answer("Эта игра работает только в группе! Добавьте бота в группу с другом.")
         return
     pvp_sessions[chat_id] = {
-        "players": {},
-        "turn": 0,
-    }
+    "players": {},
+    "names": {},   # <-- эта строчка должна быть
+    "turn": 0,
+}
     text = "👥 Камень, ножницы, бумага (вдвоём)\n\nПервый игрок, делай ход! (нажми кнопку)"
     await message.answer(text, reply_markup=get_choice_keyboard())
 
@@ -73,11 +74,18 @@ async def handle_rps(callback: CallbackQuery):
     user_id = callback.from_user.id
     choice = callback.data
 
+    # Получаем сессию
     session = pvp_sessions.get(chat_id)
     if not session:
         await callback.answer("Нет активной игры. Напишите /rps для начала.")
         return
 
+    # --- ЗАЩИТА от старых сессий ---
+    if "names" not in session:
+        session["names"] = {}
+    # ------------------------------
+
+    # Дальше идёт остальная логика...
     if user_id in session["players"]:
         await callback.answer("Ты уже сделал ход! Жди второго игрока.")
         return
