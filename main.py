@@ -1,28 +1,55 @@
 import random
 import asyncio
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# --- ТОКЕН (замените на свой) ---
-import os
+# --- ТОКЕН И ИМЯ БОТА ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_USERNAME = "tgame1_bot"  # замени на имя своего бота (без @)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# ---------- ОБРАБОТЧИК УПОМИНАНИЙ (гостевой режим) ----------
+@dp.message(lambda message: message.text and message.text.startswith(f"@{BOT_USERNAME}"))
+async def handle_mention(message: types.Message):
+    # Убираем @имя_бота из сообщения
+    command_text = message.text.replace(f"@{BOT_USERNAME}", "").strip()
+
+    if command_text.startswith("/"):
+        commands = {
+            "/start": show_menu,
+            "/game": show_menu,
+            "/rps": cmd_rps,
+            "/ttt": cmd_ttt,
+            "/guess": cmd_guess,
+            "/slot": cmd_slot,
+            "/flappy": cmd_flappy,
+            "/stop": cmd_stop,
+        }
+        cmd = command_text.split()[0]
+        if cmd in commands:
+            await commands[cmd](message)
+        else:
+            await message.reply("Неизвестная команда. Используйте /start для списка игр.")
+    else:
+        await show_menu(message)
+
+# ---------- МЕНЮ ----------
 @dp.message(Command("start"))
 @dp.message(Command("game"))
 async def show_menu(message: types.Message):
     text = (
         "Привет! Я игровой бот.\n\n"
         "Вот список доступных игр:\n"
-        "/rps – Камень, ножницы, бумага (для 2 игроков).\n"
-        "/ttt – Крестики-нолики (для 2 игроков).\n"
-        "/guess – Угадай число (для 2 игроков).\n"
-        "/slot – Игровой автомат (для 2 игроков).\n"
-        "/flappy – Играть в Flappy Bird.\n\n"
+        "/rps - Камень, ножницы, бумага (для 2 игроков).\n"
+        "/ttt - Крестики-нолики (для 2 игроков).\n"
+        "/guess - Угадай число (для 2 игроков).\n"
+        "/slot - Игровой автомат (для 2 игроков).\n"
+        "/flappy - Играть в Flappy Bird.\n\n"
         "Чтобы остановить текущую игру, используйте /stop.\n"
         "Для игры вдвоём добавьте бота в группу и пригласите друга!"
     )
