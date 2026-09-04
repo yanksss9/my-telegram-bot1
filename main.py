@@ -648,6 +648,20 @@ async def handle_game_callback(callback_query: types.CallbackQuery):
         url="https://yanksss9.github.io/flappy-bird-game/"
     )
 
+# ---------- ИНЛАЙН-РЕЖИМ (Flappy Bird) ----------
+from aiogram.types import InlineQueryResultGame
+
+@dp.inline_query()
+async def inline_flappy(inline_query: types.InlineQuery):
+    # Показываем только Flappy Bird
+    results = [
+        InlineQueryResultGame(
+            id="1",
+            game_short_name="FlappyBird"   # то же имя, что у BotFather
+        )
+    ]
+    await inline_query.answer(results, cache_time=60)
+    
 # ---------- ЗАПУСК ----------
 if __name__ == "__main__":
     dp.run_polling(bot)
